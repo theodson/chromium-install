@@ -18,8 +18,6 @@ class ChromiumInstallServiceProvider extends PackageServiceProvider
         $package
             ->name('chromium-install')
             ->hasConfigFile()
-            ->hasViews()
-            ->hasMigration('create_chromium-install_table')
             ->hasCommand(ChromiumInstallCommand::class);
     }
 }

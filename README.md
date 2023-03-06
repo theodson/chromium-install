@@ -1,19 +1,12 @@
-# Chromium installer to sit along side ChromeDriver
+# Chromium version specific installer for Laravel
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/theodson/chromium-install.svg?style=flat-square)](https://packagist.org/packages/theodson/chromium-install)
-[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/theodson/chromium-install/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/theodson/chromium-install/actions?query=workflow%3Arun-tests+branch%3Amain)
-[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/theodson/chromium-install/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/theodson/chromium-install/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
-[![Total Downloads](https://img.shields.io/packagist/dt/theodson/chromium-install.svg?style=flat-square)](https://packagist.org/packages/theodson/chromium-install)
+Sometimes, when using Dusk, it is good to specify exactly which version of Chromium to use in the Dusk tests.
 
-This is where your description should go. Limit it to a paragraph or two. Consider adding a small example.
+This package provides a simple (rough cut) command to install Chromium and optionally align the Dusk chromedriver to the
+appropriate version. This is deferred to either the standard Laravel/Dusk `dusk:chrome-driver` command or the
+staudenmeir/dusk-updater `dusk:update` command.
 
-## Support us
-
-[<img src="https://github-ads.s3.eu-central-1.amazonaws.com/chromium-install.jpg?t=1" width="419px" />](https://spatie.be/github-ad-click/chromium-install)
-
-We invest a lot of resources into creating [best in class open source packages](https://spatie.be/open-source). You can support us by [buying one of our paid products](https://spatie.be/open-source/support-us).
-
-We highly appreciate you sending us a postcard from your hometown, mentioning which of our package(s) you are using. You'll find our address on [our contact page](https://spatie.be/about-us). We publish all received postcards on [our virtual postcard wall](https://spatie.be/open-source/postcards).
+Please note this is a very rough cut 🤞🏻! Your mileage may vary.
 
 ## Installation
 
@@ -21,13 +14,6 @@ You can install the package via composer:
 
 ```bash
 composer require theodson/chromium-install
-```
-
-You can publish and run the migrations with:
-
-```bash
-php artisan vendor:publish --tag="chromium-install-migrations"
-php artisan migrate
 ```
 
 You can publish the config file with:
@@ -40,23 +26,108 @@ This is the contents of the published config file:
 
 ```php
 return [
+
+    /*
+     * Path to the directory to store Chromium downloads
+     */
+    'downloads' => base_path('../'),
+
+    /*
+     * Path where all versions of Chromium are installed, installs will follow format
+     *   <base_path>/<major_version>
+     */
+    'base_path' => '$HOME/chromium',
+
+    /*
+     * When --with-driver option chosen either `dusk:chrome-driver` (Laravel Dusk) or `dusk:update` (by Staudenmeir)
+     * will be called to update the chromedriver in use or Dusk tests to align with the Chromium version installed.
+     */
+    'prefer_laravel_dusk_chrome_driver' => true,
 ];
-```
-
-Optionally, you can publish the views using
-
-```bash
-php artisan vendor:publish --tag="chromium-install-views"
 ```
 
 ## Usage
 
+Install the latest Chromium browser.
+
 ```php
-$chromiumInstall = new Theodson\ChromiumInstall();
-echo $chromiumInstall->echoPhrase('Hello, Theodson!');
+php artisan dusk:chromium-install
+```
+
+Install a specific major version
+
+```php
+php artisan dusk:chromium-install 97
+```
+
+Install a specific major version and update the Dusk chromedriver to be the same version.
+
+> Aligning the chromedriver is important for Dusk tests to work.
+
+```php
+php artisan dusk:chromium-install --with-driver 97
+```
+
+Install a specific major version of the Chromium browser, but change the _base install folder_  where the Chromium
+browser is installed.  
+The default location of `$HOME/chromium`.
+
+```php
+php artisan dusk:chromium-install --basepath=/my/tools 97
+```
+
+> This will result in a tree structure  `/my/tools/97/`
+
+## Dusk Tests Setup
+
+Suggested setup is to update your DuskTestCase to refer to the path for the specific Chromium version
+
+#### 1. Dotenv
+
+Within a `.env` or `.env.dusk` add this entry and adjust the actual path to point to the Chromium version required.
+
+``` 
+DUSK_CHROMIUM_BINARY_PATH=/
+```
+
+#### 2. App Config
+
+Within a Laravel config file, in this example we'll use `config/app.php` add an entry
+
+``` 
+    'dusk_chromium_binary' => env('DUSK_CHROMIUM_BINARY_PATH', '/usr/local/bin/chromium'),
+```
+
+#### 3. DuskTestCase
+And finally you can target the exact Chromium version for your tests with `setBinary()`.
+
+``` 
+    /**
+     * Create the RemoteWebDriver instance.
+     */
+    protected function driver(): RemoteWebDriver
+    {
+        $options = (new ChromeOptions)
+            ->setBinary(config('dusk_chromium_binary'))
+            ->addArguments([
+                '--no-sandbox',
+                '--window-size=1024,768'
+        ]);
+        
+        return RemoteWebDriver::create(
+            'http://localhost:9515',
+            DesiredCapabilities::chrome()->setCapability(
+                ChromeOptions::CAPABILITY, $options
+            )
+        );
+                
+    }            
+    
 ```
 
 ## Testing
+
+Nope not yet... this is a very rough cut 🤞🏻
 
 ```bash
 composer test
@@ -65,19 +136,6 @@ composer test
 ## Changelog
 
 Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed recently.
-
-## Contributing
-
-Please see [CONTRIBUTING](CONTRIBUTING.md) for details.
-
-## Security Vulnerabilities
-
-Please review [our security policy](../../security/policy) on how to report security vulnerabilities.
-
-## Credits
-
-- [Theodson](https://github.com/theodson)
-- [All Contributors](../../contributors)
 
 ## License
 
