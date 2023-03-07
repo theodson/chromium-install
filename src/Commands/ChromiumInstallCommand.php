@@ -306,6 +306,7 @@ class ChromiumInstallCommand extends Command
      */
     protected function download($os, $version, $majorVersion): string
     {
+        system(sprintf('mkdir -p %s %s &>/dev/null', config('chromium-install.downloads'), config('chromium-install.base_path')));
         $url = $this->getVersionUrl($os, $version);
         $archive = config('chromium-install.downloads').'/'.sprintf('chromium.%s.zip', $version);
 

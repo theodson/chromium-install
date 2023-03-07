@@ -6,13 +6,13 @@ return [
     /*
      * Path to the directory to store Chromium downloads
      */
-    'downloads' => base_path('../'),
+    'downloads' => getenv('HOME').'/chromium_downloads',
 
     /*
      * Path where all versions of Chromium are installed, installs will follow format
      *   <base_path>/<major_version>
      */
-    'base_path' => '$HOME/chromium',
+    'base_path' => getenv('HOME').'/chromium',
 
     /*
      * When --with-driver option chosen either `dusk:chrome-driver` (Laravel Dusk) or `dusk:update` (by Staudenmeir)
