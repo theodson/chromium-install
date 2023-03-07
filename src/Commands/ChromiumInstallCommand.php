@@ -132,14 +132,14 @@ class ChromiumInstallCommand extends Command
                 );
 
                 $basePosition = $this->resolveToBasePosition($version);
-                if (!$basePosition) {
+                if (! $basePosition) {
                     $this->warn("Unable to resolve basePosition($basePosition) for major($majorVersion) in os $os. Try a lower number.");
                     exit(1);
                 }
 
                 $basePosition = $this->position($os, $basePosition);
 
-                if (!$basePosition) {
+                if (! $basePosition) {
                     $this->warn('Unable to find a position');
                     exit(1);
                 }
@@ -151,7 +151,7 @@ class ChromiumInstallCommand extends Command
                 );
 
                 $this->info(sprintf('Chromium basePosition %s successfully installed at %s',
-                        $majorVersion ? "$majorVersion ($basePosition)" : $basePosition, $binary)
+                    $majorVersion ? "$majorVersion ($basePosition)" : $basePosition, $binary)
                 );
 
                 $linkresult = $this->symlink($binary, $os, $basePosition, $majorVersion);
@@ -163,7 +163,6 @@ class ChromiumInstallCommand extends Command
                     $this->info('('.$majorVersion.') Inspecting Chromium binary : '.$binary,
                         OutputInterface::VERBOSITY_VERBOSE);
                     $this->info(system('[ -d vendor/laravel/dusk/bin/ ] && /bin/rm -f vendor/laravel/dusk/bin/*'));
-
 
                     if (config('chromium-install.prefer_laravel_dusk_chrome_driver')) {
                         // # how to pass single argument as named var doesn't work.
@@ -202,7 +201,7 @@ class ChromiumInstallCommand extends Command
             }
         }
 
-        if (!$this->iValidMultiPartVersion($version)) {
+        if (! $this->iValidMultiPartVersion($version)) {
             //
             // Using major release numbers we can get mmbp version (Major.Minor.Branch.Patch)
             // basing this on the chromedriver versions to ensure compatability in Dusk tests.
@@ -225,7 +224,7 @@ class ChromiumInstallCommand extends Command
         //
         // We receive chromium zip archives identified by position
         //
-        if (!$basePosition) {
+        if (! $basePosition) {
             $platform = $this->platforms[$os];
             $basePosition = $this->latestPosition($platform);
             $this->info("Retrieving latest basePosition = $basePosition");
@@ -263,7 +262,7 @@ class ChromiumInstallCommand extends Command
             $headers = @get_headers($url = $this->getVersionUrl($os, $basePosition));
             $this->info("Trying $basePosition at $url", OutputInterface::VERBOSITY_VERY_VERBOSE);
 
-            if (!preg_grep('/HTTP.*404/', $headers)) {
+            if (! preg_grep('/HTTP.*404/', $headers)) {
                 return $basePosition;
             }
             $basePosition++;
@@ -310,7 +309,7 @@ class ChromiumInstallCommand extends Command
         $url = $this->getVersionUrl($os, $version);
         $archive = config('chromium-install.downloads').'/'.sprintf('chromium.%s.zip', $version);
 
-        if ($this->option('redownload') || !file_exists($archive)) {
+        if ($this->option('redownload') || ! file_exists($archive)) {
             $this->info("Downloading $url to $archive");
             file_put_contents($archive, $this->getUrl($url));
         }
@@ -325,7 +324,6 @@ class ChromiumInstallCommand extends Command
      * Extract the Chromium binary from the archive and optionally delete the archive.
      *
      * @param  string  $archive  path to archive
-     * @return string
      */
     protected function extract($archive, $version): string
     {
@@ -496,10 +494,10 @@ class ChromiumInstallCommand extends Command
         }
 
         $versions = collect(json_decode($this->getUrl('https://chromium-downloads.herokuapp.com/builds'), true))
-            ->filter(fn($e) => $e['os'] == $os && $e['channel'] === 'stable')
-            ->map(fn($e) => $e['version'])
+            ->filter(fn ($e) => $e['os'] == $os && $e['channel'] === 'stable')
+            ->map(fn ($e) => $e['version'])
             ->values()
-            ->filter(fn($e) => preg_grep($pattern, [$e]))
+            ->filter(fn ($e) => preg_grep($pattern, [$e]))
             ->sort();
 
         $this->info(print_r([$versions, $pattern], true), OutputInterface::VERBOSITY_DEBUG);
@@ -533,9 +531,9 @@ class ChromiumInstallCommand extends Command
         $xml = simplexml_load_string($raw);
 
         $latest = collect(json_decode(json_encode($xml), true)['Contents'])
-            ->map(fn($e) => $e['Key'])
+            ->map(fn ($e) => $e['Key'])
             ->values()
-            ->filter(fn($e) => preg_grep($pattern, [$e]))
+            ->filter(fn ($e) => preg_grep($pattern, [$e]))
             ->sort();
 
         $this->info(print_r([$latest, $pattern], true), OutputInterface::VERBOSITY_DEBUG);
@@ -544,9 +542,6 @@ class ChromiumInstallCommand extends Command
         return $this->formatVersion(explode('/', $latest->last())[0]);
     }
 
-    /**
-     * @return array|bool|string|null
-     */
     public function getBasePath(): string|array|bool|null
     {
         return empty($this->option('basepath')) ? config('chromium-install.base_path') : $this->option('basepath');
