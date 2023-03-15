@@ -403,13 +403,14 @@ class ChromiumInstallCommand extends Command
             }
         }
 
-        $path = $this->extractionPath($version, $this->getBasePath());
-        $majorPath = $this->extractionPath(empty($majorVersion) ? 'latest' : $majorVersion, $this->getBasePath());
-
-        system("ln -snf $majorPath $path", $result);
-
-        if ($result === 0) {
-            $this->info(sprintf('Chromium %s linked to %s', $majorPath, $path));
+        $linkAsPosition = false; // nope - do we really need to link major version to position ( e.g. 1084013 -> 110 )
+        if ($linkAsPosition) {
+            $path = $this->extractionPath($version, $this->getBasePath());
+            $majorPath = $this->extractionPath(empty($majorVersion) ? 'latest' : $majorVersion, $this->getBasePath());
+            system("ln -snf $majorPath $path", $result);
+            if ($result === 0) {
+                $this->info(sprintf('Chromium %s linked to %s', $majorPath, $path));
+            }
         }
 
         return $result === 0;
