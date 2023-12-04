@@ -53,14 +53,17 @@ class ChromiumInstallCommand extends Command
     /**
      * URL to resolve Chromium Version to basePosition : arg format is Major.Minor.Branch.Patch
      */
-    protected string $versionToPositionUrl = 'https://omahaproxy.appspot.com/deps.json?version=%s';
+    // protected string $versionToPositionUrl = 'https://omahaproxy.appspot.com/deps.json?version=%s';
+    // protected string $versionToPositionUrl = 'https://versionhistory.googleapis.com/v1/chrome/platforms/all/channels/all/versions/all/releases';
+    protected string $versionToPositionUrl = 'https://chromiumdash.appspot.com/fetch_releases?channel=%s&platform=%s&num=800&offset=0';
 
     /**
      * Latest chromedriver url : arg format is Major.Minor.Branch.Patch
      */
-    protected $chromedriverVersionUrl = 'https://chromedriver.storage.googleapis.com/LATEST_RELEASE_%s';
+    // protected $chromedriverVersionUrl = 'https://chromedriver.storage.googleapis.com/LATEST_RELEASE_%s';
+    protected $chromedriverVersionUrl = 'https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json';
 
-    protected bool $resolveVersionsAgainstChromeDriver = false;
+    protected bool $resolveVersionsAgainstChromeDriver = true;
 
     /**
      * Paths to executable from the extracted archive.
@@ -131,7 +134,7 @@ class ChromiumInstallCommand extends Command
                     OutputInterface::VERBOSITY_VERY_VERBOSE
                 );
 
-                $basePosition = $this->resolveToBasePosition($version);
+                $basePosition = $this->resolveToBasePosition($version, $platform);
                 if (! $basePosition) {
                     $this->warn("Unable to resolve basePosition($basePosition) for major($majorVersion) in os $os. Try a lower number.");
                     exit(1);
@@ -201,12 +204,30 @@ class ChromiumInstallCommand extends Command
             }
         }
 
-        if (! $this->iValidMultiPartVersion($version)) {
+        if (! $this->iValidMultiPartVersion($version) && ! empty($version)) {
             //
             // Using major release numbers we can get mmbp version (Major.Minor.Branch.Patch)
             // basing this on the chromedriver versions to ensure compatability in Dusk tests.
             //
-            $version = trim($this->getUrl(sprintf($this->chromedriverVersionUrl, $version)));
+            $month = date('M');
+            $cachedReleasesMetaPath = $this->getBasePath().DIRECTORY_SEPARATOR."known-good-versions-with-downloads.json-$month.json";
+            if (file_exists($cachedReleasesMetaPath)) {
+                $this->info(sprintf('Using Cached Versions Info from %s', $cachedReleasesMetaPath));
+
+                $versions = json_decode(file_get_contents($cachedReleasesMetaPath), true);
+            } else {
+                $this->info(sprintf('Writing Cached Versions Info at %s', $cachedReleasesMetaPath));
+                $versions = json_decode($this->getUrl($this->chromedriverVersionUrl), false)['versions'];
+                file_put_contents($cachedReleasesMetaPath, json_encode($versions));
+            }
+
+            $mostRecent = collect($versions ?? [])
+                ->filter(function ($cdv) use ($version) {
+                    return explode('.', $cdv['version'])[0] == explode('.', $version)[0];
+                }) // match major.
+                ->sortByDesc('revision')
+                ->first(); // get the most recent mmbp version for major
+            $version = $mostRecent['version'] ?? $version;
         }
 
         return $this->formatVersion($version) ?: null;
@@ -272,24 +293,43 @@ class ChromiumInstallCommand extends Command
     }
 
     /**
+     * @return \Illuminate\Support\Collection
+     */
+    protected function getChromeMainBranchPosition(int $release, string $platform, $channel = 'Stable')
+    {
+        $month = date('M');
+        $cachedReleasesMetaPath = $this->getBasePath().DIRECTORY_SEPARATOR."$platform-$channel-$month-chromium-releases.json";
+        if (file_exists($cachedReleasesMetaPath)) {
+            $this->info(sprintf('Using Cached Release Meta from %s', $cachedReleasesMetaPath));
+
+            $positions = collect(json_decode(file_get_contents($cachedReleasesMetaPath), true));
+        } else {
+            $this->info(sprintf('Writing Cached Release Meta at %s', $cachedReleasesMetaPath));
+            $positions = collect(\Http::get(sprintf($this->versionToPositionUrl, $channel, $platform))->json());
+            file_put_contents($cachedReleasesMetaPath, $positions->toJson());
+        }
+
+        return $positions->filter(fn ($rel) => $rel['milestone'] === $release) ?? collect();
+    }
+
+    /**
      * Resolve Major.Minor.Branch.Patch version into basePosition number
      *
      * @param  string  $version  must be Major.Minor.Branch.Patch
      * @return string|null returns the basePosition
      */
-    protected function resolveToBasePosition(string $version): string|null
+    protected function resolveToBasePosition(string $version, string $platform): ?string
     {
         try {
-            $chromiumMeta = json_decode(trim(
-                $this->getUrl(sprintf($this->versionToPositionUrl, $version))
-            ), false, 512, JSON_THROW_ON_ERROR);
-
-            $basePosition = $chromiumMeta?->chromium_base_position;
+            $positions = $this->getChromeMainBranchPosition((int) $version, $platform);
+            $basePosition = $positions->first()['chromium_main_branch_position'];
 
             $this->info("LATEST_RELEASE $version : basePosition $basePosition", OutputInterface::VERBOSITY_VERBOSE);
 
             return $basePosition;
         } catch (\Exception $e) {
+            $this->error('Resolve Base Position Failed:'.$e->getMessage(), OutputInterface::VERBOSITY_NORMAL);
+
             return null;
         }
     }
@@ -305,7 +345,8 @@ class ChromiumInstallCommand extends Command
      */
     protected function download($os, $version, $majorVersion): string
     {
-        system(sprintf('mkdir -p %s %s &>/dev/null', config('chromium-install.downloads'), config('chromium-install.base_path')));
+        system(sprintf('mkdir -p %s %s &>/dev/null', config('chromium-install.downloads'),
+            config('chromium-install.base_path')));
         $url = $this->getVersionUrl($os, $version);
         $archive = config('chromium-install.downloads').'/'.sprintf('chromium.%s.zip', $version);
 
@@ -331,7 +372,7 @@ class ChromiumInstallCommand extends Command
 
         $this->info("Path [$path]", OutputInterface::VERBOSITY_DEBUG);
         $this->info("Archive [$archive]", OutputInterface::VERBOSITY_DEBUG);
-        system("type -t unzip 2>/dev/null && unzip -ou $archive -d $path &>/dev/null");
+        system("type -t unzip &>/dev/null && unzip -ou $archive -d $path &>/dev/null");
 
         if ($this->option('tidyup')) {
             $this->info("Removing Archive $archive");
@@ -400,6 +441,8 @@ class ChromiumInstallCommand extends Command
 
             if ($result === 0) {
                 $this->info(sprintf('Chromium linked to %s', $link));
+
+                return true;
             }
         }
 
@@ -413,7 +456,7 @@ class ChromiumInstallCommand extends Command
             }
         }
 
-        return $result === 0;
+        return false;
     }
 
     /**
