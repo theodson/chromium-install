@@ -64,7 +64,7 @@ class ChromiumInstallCommand extends Command
     protected $chromedriverVersionUrl = 'https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json';
 
 
-    protected bool $resolveVersionsAgainstChromeDriver = false;
+    protected bool $resolveVersionsAgainstChromeDriver = true;
 
     /**
      * Paths to executable from the extracted archive.
