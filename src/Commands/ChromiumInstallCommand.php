@@ -111,6 +111,8 @@ class ChromiumInstallCommand extends Command
     {
         $currentOS = $this->os();
 
+        mkdir($this->getBasePath(), 0777, true);
+
         foreach ($this->platforms as $os => $platform) {
             if ($os === $currentOS) {
                 //
@@ -217,7 +219,7 @@ class ChromiumInstallCommand extends Command
                 $versions = json_decode(file_get_contents($cachedReleasesMetaPath), true);
             } else {
                 $this->info(sprintf('Writing Cached Versions Info at %s', $cachedReleasesMetaPath));
-                $versions = json_decode($this->getUrl($this->chromedriverVersionUrl), false)['versions'];
+                $versions = json_decode($this->getUrl($this->chromedriverVersionUrl), true)['versions'];
                 file_put_contents($cachedReleasesMetaPath, json_encode($versions));
             }
 
