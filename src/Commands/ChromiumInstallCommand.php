@@ -523,7 +523,7 @@ class ChromiumInstallCommand extends Command
      * @param  string|null  $version  major version or when null the Latest is returned.
      * @return string in format Major.Minor.Branch.Patch version
      */
-    private function chromiumVersion($os, string $version = null): string
+    private function chromiumVersion($os, ?string $version = null): string
     {
         $slugs = [
             'linux' => 'linux',
@@ -557,7 +557,7 @@ class ChromiumInstallCommand extends Command
      * @param  string|null  $version  major version or when null the Latest is returned.
      * @return string in format Major.Minor.Branch.Patch version
      */
-    private function chromedriverVersion($os, string $version = null): string
+    private function chromedriverVersion($os, ?string $version = null): string
     {
         $slugs = [
             'linux' => 'linux64',
