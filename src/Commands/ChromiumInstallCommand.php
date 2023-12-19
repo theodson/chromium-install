@@ -111,7 +111,7 @@ class ChromiumInstallCommand extends Command
     {
         $currentOS = $this->os();
 
-        if (!file_exists($this->getBasePath())) {
+        if (! file_exists($this->getBasePath())) {
             mkdir($this->getBasePath(), 0777, true);
         }
 
